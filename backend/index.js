@@ -5,50 +5,55 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid')
+const cookieParser = require('cookie-parser');;
+const cors= require('cors');
 
 const Orders = require('./models/orders');
 const Customers = require('./models/customers');
 const Products = require('./models/products');
 const Categories = require('./models/categories');
 const Order_details = require('./models/order_details');
+const { json } = require('body-parser');
 let cart = [];
 
 const port  = 3000;
 const app = express();
- 
+app.use(cors({
+  origin: 'http://localhost:3001',
+  credentials: true
+}));
 
 
 
 
 
-app.set('view-engine', 'ejs')
 
 
-
-app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
-    secret: 'secret',
-    resave: false,
-    saveUninitialized: false
+  secret: 'session',
+  resave: false,
+  saveUninitialized: false,
+  cookie:{
+    secure: false,
+    sameSite: 'none',
+    maxAge: 1000*60*60*24
+  }
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3001');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-});
+app.use(cookieParser('session'))
 
 
-passport.use(new LocalStrategy({
-    usernameField: 'email', // Specify the field used as username
-    passwordField: 'password', // Specify the field used as password
-  }, async (email, password, done) => {
+passport.use(new LocalStrategy(
+  {
+    usernameField: 'email',
+    passwordField: 'password'
+  },async (email, password, done) => {
     try {
-      const user = await Customers.findOne({ where: { email } });
+      const user = await Customers.findOne({ where: { email: email } });
   
       // If user does not exist
       if (!user) {
@@ -64,29 +69,38 @@ passport.use(new LocalStrategy({
       }
   
       // If everything is correct, return the user object
+      console.log('all correct1')
+      console.log(user.id)
       return done(null, user);
     } catch (err) {
       return done(err);
     }
-  }));
+  }
+));
+
   
-  passport.serializeUser((user, done) => {
-    done(null, user.id);
-  });
-  
-  passport.deserializeUser(async (id, done) => {
-    try {
-      const user = await Customers.findByPk(id);
-  
-      if (!user) {
-        return done(null, false, { message: 'Incorrect user ID.' });
-      }
-  
-      return done(null, user);
-    } catch (err) {
-      return done(err);
+passport.serializeUser((user, done) => {
+  console.log('all correct 2')
+  console.log(user.id)
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  console.log('all correct 3')
+  try {
+    const user = await Customers.findByPk(id);
+
+    if (!user) {
+      return done(null, false, { message: 'Incorrect user ID.' });
     }
-  });
+
+    return done(null, user);
+  } catch (err) {
+    return done(err);
+  }
+});
+
+app.use(express.json());
 
     //POST METHODS
 
@@ -118,18 +132,13 @@ passport.use(new LocalStrategy({
       res.status(500).json({ message: 'Error registering new user.' });
     }
   });
-
-
-  app.post('/login', 
-  passport.authenticate('local', { failureRedirect: '/login' }),
+ 
+  app.post('/login',passport.authenticate('local'),
   function(req, res) {
-    req.login(req.user, function(err) {
-      if (err) { return next(err); }
-      req.session.userId = req.user.id;
-      return res.redirect('/'); 
-    });
-  });
-
+    console.log(req.cookies)
+    res.redirect('/')
+});
+  
   app.post('/add-to-cart', async(req, res)=>{
     const itemId = req.body.product_id;
     const item = await Products.findByPk(itemId)
@@ -183,10 +192,9 @@ passport.use(new LocalStrategy({
     //GET METHODS
 
 
-app.get('/api/orders', function ( req, res){
-    Orders.findAll().then((orders)=>{
-        res.json(orders);
-    })
+app.get('/', function ( req, res){
+    
+    res.send(req.body)
 });
 
 app.get('/api/orders/:id', function ( req, res){
@@ -201,21 +209,12 @@ app.get('/api/orders/:id', function ( req, res){
     })
 });
 
-app.get('/dashboard', passport.authenticate('local', { session: false }), (req, res) => {
-    res.json({ message: 'You are authenticated.' });
-  });
 
+app.get('/username', async (req, res) => {
+    
+    res.status(201).json({userName: "Customer"})
+});
 
-  app.get('/username', async (req, res) => {
-    if (req.isAuthenticated()) {
-      let userId = req.session.userId;
-      let customer = await Customers.findByPk(userId)
-      res.json({userName: customer} )
-    }
-      else {
-      res.json( {userName: 'Customer'});
-    }
-  });
 
   app.get('/login', (req, res)=>{
     res.render('login.ejs');
