@@ -36,7 +36,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie:{
-    secure: false,
+    secure: true,
     sameSite: 'none',
     maxAge: 1000*60*60*24
   }
@@ -105,6 +105,7 @@ app.use(express.json());
     //POST METHODS
 
   app.post('/register', async (req, res) => {
+    console.log(req.body);
     const { email, full_name, address, password } = req.body;
   
     try {
@@ -125,7 +126,8 @@ app.use(express.json());
   
       // Return the new user object
       // res.json(user);
-      res.render('login.ejs')
+      console.log('user registered')
+      res.json({message: "user created"})
 
     } catch (err) {
       console.error(err);
@@ -138,7 +140,7 @@ app.use(express.json());
     console.log(req.sessionID);
     res.clearCookie('sessionId')
     res.cookie('sessionId', req.sessionID);
-    res.json({message:'hey'})
+    res.json({message:'You are authorized'})
 });
   
   app.post('/add-to-cart', async(req, res)=>{
@@ -229,7 +231,8 @@ app.get('/username', (req, res) => {
       Customers.findByPk(userId).then((user)=>{
         if(user.full_name){
           console.log(user.full_name);
-          res.json({userName: user.full_name})
+          res.json({
+            userName: user.full_name})
         }else{
           console.log("User not found")
         }
@@ -237,6 +240,8 @@ app.get('/username', (req, res) => {
       console.log(userId + '!!!!!!')
     }else{
         console.log("no session found")
+        res.json({
+          userName: "Customer"})
     }
       // Use the session data
 
@@ -251,9 +256,20 @@ app.get('/username', (req, res) => {
   });
 });
 
-  app.get('/login', (req, res)=>{
-    res.render('login.ejs');
-  });
+  // app.get('/isLoggedIn', (req, res)=>{
+  //   const sessionId = req.cookies.sessionId;
+  //   req.sessionStore.get(sessionId, (error, session) => {
+  //     if(error){
+  //       res.json({error: error});
+  //     }
+  //     if(session){
+  //       res.json({isLoggedIn: true});
+  //     }else{
+  //       res.json({isLoggedIn: false});
+  //     }
+  //   })
+    
+  // });
 
   app.get('/register', (req, res)=>{
     res.render('register.ejs');
