@@ -27,8 +27,7 @@ app.use(cors({
 
 
 
-app.use(cookieParser('session'));
-
+app.use(cookieParser());
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
@@ -137,10 +136,9 @@ app.use(express.json());
  
   app.post('/login',passport.authenticate('local'),
   function(req, res) {
-    console.log(req.sessionID);
-    res.clearCookie('sessionId')
+    res.clearCookie('sessionId');
     res.cookie('sessionId', req.sessionID);
-    res.json({message:'You are authorized'})
+    res.json({message:'You are authorized'});
 });
   
   app.post('/add-to-cart', async(req, res)=>{
@@ -166,15 +164,12 @@ app.use(express.json());
     res.render('category.ejs', {category: category.name, products: products})
   });
 
-  app.post('/logout', function(req, res){
-    req.logout(function(err) {
-      if (err) { return next(err); }
-      req.session.destroy(function(err) {
-        if (err) { return next(err); }
-        res.redirect('/');
-      });
-    });
+  app.post('/logout', (req, res) => {
+    // Destroy the session
+     res.clearCookie("sessionId")
+    res.json({message: "Logout"})
   });
+  
 
   app.post('/checkout', (req, res)=>{
     res.render('checkout.ejs', {cart: cart});
@@ -214,62 +209,35 @@ app.get('/api/orders/:id', function ( req, res){
 });
 
 
-// app.get('/username', async (req, res) => {
-//     console.log(req.cookies)
-//     res.status(201).json({userName: "Customer"})
-// });
+
 
 app.get('/username', (req, res) => {
   const sessionId = req.cookies.sessionId;
   req.sessionStore.get(sessionId, (error, session) => {
     if (error) {
           // Handle error
-          console.log(error+" error occured")
+          res.send(error);
+          
     }
     if(session){
       let userId = session.passport.user;
       Customers.findByPk(userId).then((user)=>{
         if(user.full_name){
-          console.log(user.full_name);
           res.json({
-            userName: user.full_name})
+            userName: user.full_name
+          })
         }else{
           console.log("User not found")
         }
       })
-      console.log(userId + '!!!!!!')
     }else{
         console.log("no session found")
         res.json({
           userName: "Customer"})
     }
-      // Use the session data
-
-      
-      // Customers.findByPk(session.passport.user).then((user)=>{
-      //   if(user.full_name){
-      //     res.json({userName: user.full_name})
-      //   }else{
-      //     res.json({userName: "customer"})
-      //   }
-      // })
   });
 });
 
-  // app.get('/isLoggedIn', (req, res)=>{
-  //   const sessionId = req.cookies.sessionId;
-  //   req.sessionStore.get(sessionId, (error, session) => {
-  //     if(error){
-  //       res.json({error: error});
-  //     }
-  //     if(session){
-  //       res.json({isLoggedIn: true});
-  //     }else{
-  //       res.json({isLoggedIn: false});
-  //     }
-  //   })
-    
-  // });
 
   app.get('/register', (req, res)=>{
     res.render('register.ejs');
