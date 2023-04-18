@@ -1,6 +1,6 @@
 const express = require('express');
 const passport = require('passport')
-const Sequalize = require('sequelize');
+const { Op } = require('sequelize');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const LocalStrategy = require('passport-local').Strategy;
@@ -191,9 +191,21 @@ app.use(express.json());
     //GET METHODS
 
 
-app.get('/', function ( req, res){
-    
-    res.send(req.body)
+app.get('/isLoggedIn', function ( req, res){
+  const sessionId = req.cookies.sessionId;
+  req.sessionStore.get(sessionId, (error, session) => {
+    if (error) {
+          // Handle error
+          res.send(error);
+    }
+    if(session){
+      let userId = session.passport.user;
+      res.send({logged: true})
+    }else{
+        res.send({
+          logged: false})
+    }
+  });
 });
 
 app.get('/api/orders/:id', function ( req, res){
@@ -250,6 +262,36 @@ app.get('/username', (req, res) => {
   app.get('/products', async (req, res)=>{
     const products = await Products.findAll().then(products => products)
     res.json({products: products});
+  })
+
+  app.get('/products/getproduct/:id', async (req, res)=>{
+    let id = req.params.id;
+    Products.findByPk(id).then((product)=>{
+      console.log(product)
+      res.json({name: product.name});
+    })
+    .catch((err)=>{
+      console.log(err);
+      res.json([{name: "item not found"}]);
+    })
+  })
+
+  app.get("/products/:name", async (req, res)=>{
+    const searchTerm = req.params.name;
+    try {
+      
+      const results = await Products.findAll({
+        where: {
+         name: {
+            [Op.like]: `%${searchTerm}%`,
+          },
+        },
+      });
+    console.log(results);
+    res.json({products: results});
+  } catch (error) {
+    res.json({name: 'name', id: 1});
+  }
   })
 
   app.get('/categories', async (req, res)=>{
