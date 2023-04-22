@@ -4,7 +4,7 @@ const Sequalize = require('sequelize');
 const Order_details= sequelize.define('order_details', {
     id: {
         field: 'id',
-        type: Sequalize.STRING,
+        type: Sequalize.UUID,
         primaryKey: true
     },
     product_id: {

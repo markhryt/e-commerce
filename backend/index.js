@@ -174,20 +174,44 @@ app.use(express.json());
   app.post('/checkout', (req, res)=>{
     res.render('checkout.ejs', {cart: cart});
   })
-  app.post('/buy', async (req, res)=>{
-   let id = uuidv4();
-   let amount = cart.length;
-   let userId = req.session.userId;
-   if(amount>1 && req.isAuthenticated()){
-    Orders.create({
-      id: id,
-      amount: amount,
-      customer_id: userId
-    });
-    res.send('Thank you for purchase')
-   }
-  res.redirect('/')
-  })
+  app.post('/placeorder', async (req, res)=>{  
+    const sessionId = req.cookies.sessionId;
+    req.sessionStore.get(sessionId, (error, session) => {
+      if (error) {
+            // Handle error
+            res.send(error);
+      }
+      if(session){
+        let id = uuidv4();
+        let userId = session.passport.user;
+        let cart = req.body.cart;
+        let amount = cart.length;
+        console.log(userId);
+           if(amount>0){
+              Orders.create({
+                id: id,
+                amount: amount,
+                customer_id: userId
+              });
+              cart.forEach((item)=>{
+                Order_details.create({
+                  id: uuidv4(),
+                  product_id: item.id,
+                  order_id: id
+                })
+              })
+              res.send('Thank you for purchase')
+            }
+      }else{
+          res.send(
+            "Something went wrong"
+          );
+      }
+  });
+});
+
+
+
     //GET METHODS
 
 
