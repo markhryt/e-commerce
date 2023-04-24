@@ -256,16 +256,32 @@ app.get('/account/accountinfo', function(req, res){
   });
 })
 
-app.get('/account/orders/:id', function ( req, res){
+app.get('/account/orders', (req,res)=>{
+  const sessionId = req.cookies.sessionId;
+  req.sessionStore.get(sessionId, async (error, session) => {
+    if (error) {
+          // Handle error
+          res.send(error);
+    }
+    if(session){
+      let userId = session.passport.user;
+      let orders = await Orders.findAll({where:{
+        customer_id: userId
+      }})
+      res.send(orders);
+    }else{
+        res.send('no orders found')
+    }
+  });
+})
+
+app.get('/account/orders/:id', async function ( req, res){
     let id = req.params.id;
-    Orders.findByPk(id).then((order)=>{
-        if(order){
-            res.json(order);
-        }else{
-            res.status(404).send();
-        }
-        
-    })
+    let order_details = await Order_details.findAll({where:{
+      order_id: id
+    }})
+    console.log(order_details);
+    res.send(order_details);
 });
 
 
