@@ -170,10 +170,6 @@ app.use(express.json());
     res.json({message: "Logout"})
   });
   
-
-  app.post('/checkout', (req, res)=>{
-    res.render('checkout.ejs', {cart: cart});
-  })
   app.post('/placeorder', async (req, res)=>{  
     const sessionId = req.cookies.sessionId;
     req.sessionStore.get(sessionId, (error, session) => {
@@ -232,7 +228,35 @@ app.get('/isLoggedIn', function ( req, res){
   });
 });
 
-app.get('/api/orders/:id', function ( req, res){
+
+app.get('/account/accountinfo', function(req, res){
+  const sessionId = req.cookies.sessionId;
+  req.sessionStore.get(sessionId, (error, session) => {
+    if (error) {
+          // Handle error
+          res.send(error);
+    }
+    if(session){
+      let userId = session.passport.user;
+      Customers.findByPk(userId).then((user)=>{
+        if(user.full_name){
+          res.json({
+            userName: user.full_name,
+            email: user.email,
+            address: user.address
+          });
+        }else{
+          res.send('no info found');
+        }
+      })
+        
+    }else{
+        res.send('no user found')
+    }
+  });
+})
+
+app.get('/account/orders/:id', function ( req, res){
     let id = req.params.id;
     Orders.findByPk(id).then((order)=>{
         if(order){
@@ -263,13 +287,12 @@ app.get('/username', (req, res) => {
             userName: user.full_name
           })
         }else{
-          console.log("User not found")
+          res.json({userName: "Customer"});
         }
       })
     }else{
-        console.log("no session found")
         res.json({
-          userName: "Customer"})
+          userName: "Customer"});
     }
   });
 });
