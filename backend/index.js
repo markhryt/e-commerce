@@ -1,6 +1,6 @@
 const express = require('express');
 const passport = require('passport')
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const LocalStrategy = require('passport-local').Strategy;
@@ -8,13 +8,14 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid')
 const cookieParser = require('cookie-parser');;
 const cors= require('cors');
+const sequelize = require('./database/database');
 
 const Orders = require('./models/orders');
 const Customers = require('./models/customers');
 const Products = require('./models/products');
 const Categories = require('./models/categories');
 const Order_details = require('./models/order_details');
-const { json } = require('body-parser');
+
 let cart = [];
 
 const port  = 3000;
@@ -277,10 +278,10 @@ app.get('/account/orders', (req,res)=>{
 
 app.get('/account/orders/:id', async function ( req, res){
     let id = req.params.id;
-    let order_details = await Order_details.findAll({where:{
-      order_id: id
-    }})
-    console.log(order_details);
+    const order_details = await sequelize.query(`SELECT order_details.id, order_details.order_id, order_details.product_id, products.name
+    FROM order_details
+    JOIN products ON order_details.product_id = products.id
+    WHERE order_id = 	'${id}';`);
     res.send(order_details);
 });
 
