@@ -15,6 +15,10 @@ const Orders= sequelize.define('orders', {
    amount: {
         field: 'amount',
         type: Sequalize.INTEGER,
+    },
+    date: {
+        field: 'date',
+        type: Sequalize.DATE,
     }
 },{
     timestamps: false

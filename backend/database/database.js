@@ -1,6 +1,6 @@
-const Sequalize = require('sequelize');
+const Sequelize = require('sequelize');
 
-module.exports =  new Sequalize('commerce', 'markhrytchak', '', {
+module.exports =  new Sequelize('commerce', 'markhrytchak', '', {
     host: 'localhost',
     dialect: 'postgres'
 });

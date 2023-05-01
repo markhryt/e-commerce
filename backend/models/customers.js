@@ -1,27 +1,27 @@
 const sequelize = require('./../database/database')
-const Sequalize = require('sequelize');
+const Sequelize = require('sequelize');
 
 module.exports = sequelize.define('customers', {
     id: {
         field: 'id',
-        type: Sequalize.UUID,
+        type: Sequelize.UUID,
         primaryKey: true
     },
     email: {
         field: 'email',
-        type: Sequalize.STRING
+        type: Sequelize.STRING
     },
     full_name: {
         field: 'full_name',
-        type: Sequalize.STRING,
+        type: Sequelize.STRING,
     },
     address: {
         field: 'address',
-        type: Sequalize.STRING
+        type: Sequelize.STRING
     },
     password: {
         field: 'password',
-        type: Sequalize.STRING
+        type: Sequelize.STRING
     }
 },{
     timestamps: false

@@ -9,12 +9,16 @@ const { v4: uuidv4 } = require('uuid')
 const cookieParser = require('cookie-parser');;
 const cors= require('cors');
 const sequelize = require('./database/database');
+const sgMail = require('@sendgrid/mail');
+
+require('dotenv').config();
 
 const Orders = require('./models/orders');
 const Customers = require('./models/customers');
 const Products = require('./models/products');
 const Categories = require('./models/categories');
 const Order_details = require('./models/order_details');
+const EmailConfirm = require('./models/emailconfirm');
 
 let cart = [];
 
@@ -69,8 +73,6 @@ passport.use(new LocalStrategy(
       }
   
       // If everything is correct, return the user object
-      console.log('all correct1')
-      console.log(user.id)
       return done(null, user);
     } catch (err) {
       return done(err);
@@ -80,13 +82,10 @@ passport.use(new LocalStrategy(
 
   
 passport.serializeUser((user, done) => {
-  console.log('all correct 2')
-  console.log(user.id)
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
-  console.log('all correct 3')
   try {
     const user = await Customers.findByPk(id);
 
@@ -105,34 +104,34 @@ app.use(express.json());
     //POST METHODS
 
   app.post('/register', async (req, res) => {
-    console.log(req.body);
-    const { email, full_name, address, password } = req.body;
-  
     try {
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
-      // Save the new user to the database
-      
-      const id = uuidv4();
-
-      const user = await Customers.create({
-        id,
-        email,
-        full_name,
-        address,
-        password: hashedPassword,
-      });
+      const { email, full_name, address, password } = req.body.userData;
+      const {confirmationCode} = req.body;
+      let codeForGivenEmail = await EmailConfirm.findByPk(email)
+      if(Number(confirmationCode) === codeForGivenEmail.dataValues.code){
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Save the new user to the database
+        
+        const id = uuidv4();
   
-      // Return the new user object
-      // res.json(user);
-      console.log('user registered')
-      res.json({message: "user created"})
+        const user = await Customers.create({
+          id,
+          email,
+          full_name,
+          address,
+          password: hashedPassword,
+        });
 
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error registering new user.' });
-    }
+        res.send(true);
+      }else{
+        res.send(false);
+      }
+    }catch (err) {
+        res.send(false);
+      }
+
   });
  
   app.post('/login',passport.authenticate('local'),
@@ -142,21 +141,6 @@ app.use(express.json());
     res.json({message:'You are authorized'});
 });
   
-  app.post('/add-to-cart', async(req, res)=>{
-    const itemId = req.body.product_id;
-    const item = await Products.findByPk(itemId)
-    cart.push(item)
-    res.render('cart.ejs', {cart: cart})
-  })
-
-  app.post('/remove-from-cart', async (req, res)=>{
-    const itemId = req.body.product_id;
-    
-    cart = cart.filter((item)=>{
-      item.id != itemId
-    })
-    res.render('cart.ejs', {cart: cart})
-  });
 
   app.post('/categories', async (req, res)=>{
     const categoryId = req.body.category_id;
@@ -164,6 +148,41 @@ app.use(express.json());
     const products = await Products.findAll({where:{category_id: categoryId}});
     res.render('category.ejs', {category: category.name, products: products})
   });
+  app.post('/verifyemail', async (req, res)=>{
+    let email = req.body.email;
+    let confirmationCode = Math.floor(Math.random() * 90000) + 10000;
+    try{
+      await EmailConfirm.destroy({
+        where:{
+          email: email.toString(),
+        }
+      });
+      await EmailConfirm.create({
+        email: email.toString(),
+        code: confirmationCode,
+      });
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      const msg = {
+        to: email, // Change to your recipient
+        from: 'verifyemailforecommerce@gmail.com', // Change to your verified sender
+        subject: 'Sending with SendGrid is Fun',
+        text: confirmationCode.toString(),
+        html: '<strong>Your confirmation code:' + confirmationCode + '</strong>',
+    }
+      sgMail
+      .send(msg)
+      .then(() => {
+        console.log('Email sent')
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+    }catch{
+      res.send('failed to check email');
+    }
+
+    res.send('success');
+  })
 
   app.post('/logout', (req, res) => {
     // Destroy the session
@@ -183,12 +202,12 @@ app.use(express.json());
         let userId = session.passport.user;
         let cart = req.body.cart;
         let amount = cart.length;
-        console.log(userId);
            if(amount>0){
               Orders.create({
                 id: id,
                 amount: amount,
-                customer_id: userId
+                customer_id: userId,
+                date: new Date().toISOString().slice(0, 10)
               });
               cart.forEach((item)=>{
                 Order_details.create({
@@ -328,15 +347,29 @@ app.get('/username', (req, res) => {
     res.json({products: products});
   })
 
+    app.get('/categories', async (req, res)=>{
+    const products = await Categories.findAll();
+    res.json({products: products});
+  })
+
+
+  app.get('/:category/getproducts', async (req, res)=>{
+    let {category} = req.params;
+    const products = await Products.findAll({where:{
+      category_id: category
+    }});
+    res.json({products: products});
+  })
+
+
   app.get('/products/getproduct/:id', async (req, res)=>{
     let id = req.params.id;
     Products.findByPk(id).then((product)=>{
-      console.log(product)
-      res.json({name: product.name});
+      res.json({product: product});
     })
     .catch((err)=>{
       console.log(err);
-      res.json([{name: "item not found"}]);
+      res.json([{product: "item not found"}]);
     })
   })
 

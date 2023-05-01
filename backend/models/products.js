@@ -16,6 +16,9 @@ const Sequalize = require('sequelize');
     },
     name: {
       type: Sequalize.STRING
+    },
+    img_url: {
+      type: Sequalize.STRING
     }
   }, {
     timestamps: false
