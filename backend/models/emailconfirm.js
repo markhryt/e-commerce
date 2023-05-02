@@ -5,7 +5,7 @@ module.exports = sequelize.define('emailconfirm', {
     email: {
         field: 'email',
         type: Sequelize.STRING,
-        primaryKey: true
+        primaryKey: true,
     },
     code: {
         field: 'code',

@@ -1,6 +1,6 @@
 const express = require('express');
 const passport = require('passport')
-const { Op, Sequelize } = require('sequelize');
+const { Op } = require('sequelize');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const LocalStrategy = require('passport-local').Strategy;
@@ -19,8 +19,6 @@ const Products = require('./models/products');
 const Categories = require('./models/categories');
 const Order_details = require('./models/order_details');
 const EmailConfirm = require('./models/emailconfirm');
-
-let cart = [];
 
 const port  = 3000;
 const app = express();
@@ -139,19 +137,24 @@ app.use(express.json());
     res.clearCookie('sessionId');
     res.cookie('sessionId', req.sessionID);
     res.json({message:'You are authorized'});
+
 });
   
 
   app.post('/categories', async (req, res)=>{
-    const categoryId = req.body.category_id;
-    const category = await Categories.findByPk(categoryId);
-    const products = await Products.findAll({where:{category_id: categoryId}});
-    res.render('category.ejs', {category: category.name, products: products})
+    try{
+      const categoryId = req.body.category_id;
+      const category = await Categories.findByPk(categoryId);
+      const products = await Products.findAll({where:{category_id: categoryId}});
+      res.render('category.ejs', {category: category.name, products: products})
+    }catch{
+      res.send('an error occured')
+    }
   });
   app.post('/verifyemail', async (req, res)=>{
-    let email = req.body.email;
-    let confirmationCode = Math.floor(Math.random() * 90000) + 10000;
     try{
+      let email = req.body.email;
+      let confirmationCode = Math.floor(Math.random() * 90000) + 10000;
       await EmailConfirm.destroy({
         where:{
           email: email.toString(),
@@ -186,44 +189,48 @@ app.use(express.json());
 
   app.post('/logout', (req, res) => {
     // Destroy the session
-     res.clearCookie("sessionId")
+    res.clearCookie("sessionId")
     res.json({message: "Logout"})
   });
   
-  app.post('/placeorder', async (req, res)=>{  
-    const sessionId = req.cookies.sessionId;
-    req.sessionStore.get(sessionId, (error, session) => {
-      if (error) {
-            // Handle error
-            res.send(error);
-      }
-      if(session){
-        let id = uuidv4();
-        let userId = session.passport.user;
-        let cart = req.body.cart;
-        let amount = cart.length;
-           if(amount>0){
-              Orders.create({
-                id: id,
-                amount: amount,
-                customer_id: userId,
-                date: new Date().toISOString().slice(0, 10)
-              });
-              cart.forEach((item)=>{
-                Order_details.create({
-                  id: uuidv4(),
-                  product_id: item.id,
-                  order_id: id
+  app.post('/placeorder', async (req, res)=>{
+    try{
+      const sessionId = req.cookies.sessionId;
+      req.sessionStore.get(sessionId, async (error, session) => {
+        if (error) {
+              // Handle error
+              res.send(error);
+        }
+        if(session){
+          let id = uuidv4();
+          let userId = session.passport.user;
+          let cart = req.body.cart;
+          let amount = cart.length;
+              if(amount>0){
+                await Orders.create({
+                  id: id,
+                  amount: amount,
+                  customer_id: userId,
+                  date: new Date().toISOString().slice(0, 10)
+                });
+                await cart.forEach((item)=>{
+                  Order_details.create({
+                    id: uuidv4(),
+                    product_id: item.id,
+                    order_id: id
+                  })
                 })
-              })
-              res.send('Thank you for purchase')
-            }
-      }else{
-          res.send(
-            "Something went wrong"
-          );
-      }
-  });
+                res.send('Thank you for purchase')
+              }
+        }else{
+            res.send(
+              "Something went wrong"
+            );
+        }
+    });
+    }catch{
+      res.send('an error occured')
+    } 
 });
 
 
@@ -232,76 +239,97 @@ app.use(express.json());
 
 
 app.get('/isLoggedIn', function ( req, res){
-  const sessionId = req.cookies.sessionId;
-  req.sessionStore.get(sessionId, (error, session) => {
-    if (error) {
-          // Handle error
-          res.send(error);
-    }
-    if(session){
-      let userId = session.passport.user;
-      res.send({logged: true})
-    }else{
-        res.send({
-          logged: false})
-    }
-  });
+
+  try{
+    const sessionId = req.cookies.sessionId;
+    req.sessionStore.get(sessionId, (error, session) => {
+      if (error) {
+            // Handle error
+            res.send(error);
+      }
+      if(session){
+        res.send({logged: true})
+      }else{
+          res.send({
+            logged: false})
+      }
+    });
+  }catch{
+    res.send('an error occured');
+  }
+ 
 });
 
 
 app.get('/account/accountinfo', function(req, res){
-  const sessionId = req.cookies.sessionId;
-  req.sessionStore.get(sessionId, (error, session) => {
-    if (error) {
-          // Handle error
-          res.send(error);
-    }
-    if(session){
-      let userId = session.passport.user;
-      Customers.findByPk(userId).then((user)=>{
-        if(user.full_name){
-          res.json({
-            userName: user.full_name,
-            email: user.email,
-            address: user.address
-          });
-        }else{
-          res.send('no info found');
-        }
-      })
-        
-    }else{
-        res.send('no user found')
-    }
-  });
+  try{
+    const sessionId = req.cookies.sessionId;
+    req.sessionStore.get(sessionId, (error, session) => {
+      if (error) {
+            // Handle error
+            res.send(error);
+      }
+      if(session){
+        let userId = session.passport.user;
+        Customers.findByPk(userId).then((user)=>{
+          if(user.full_name){
+            res.json({
+              userName: user.full_name,
+              email: user.email,
+              address: user.address
+            });
+          }else{
+            res.send('no info found');
+          }
+        })
+          
+      }else{
+          res.send('no user found')
+      }
+    });
+
+  }catch{
+    res.send('an error occured');
+  }
 })
 
 app.get('/account/orders', (req,res)=>{
-  const sessionId = req.cookies.sessionId;
-  req.sessionStore.get(sessionId, async (error, session) => {
-    if (error) {
+  try{
+    const sessionId = req.cookies.sessionId;
+    req.sessionStore.get(sessionId, async (error, session) => {
+      if (error) {
           // Handle error
-          res.send(error);
-    }
-    if(session){
-      let userId = session.passport.user;
-      let orders = await Orders.findAll({where:{
-        customer_id: userId
-      }})
-      res.send(orders);
-    }else{
+           res.send(error);
+      }
+      if(session){
+        let userId = session.passport.user;
+        let orders = await Orders.findAll({where:{
+         customer_id: userId
+        }})
+        res.send(orders);
+      }else{
         res.send('no orders found')
-    }
+      }
   });
+
+  }catch{
+    res.send('an error occured');
+  }
+  
 })
 
 app.get('/account/orders/:id', async function ( req, res){
+  try{
     let id = req.params.id;
     const order_details = await sequelize.query(`SELECT order_details.id, order_details.order_id, order_details.product_id, products.name
     FROM order_details
     JOIN products ON order_details.product_id = products.id
     WHERE order_id = 	'${id}';`);
     res.send(order_details);
+  }catch{
+    res.send('an error occured');
+  }
+    
 });
 
 
@@ -334,49 +362,57 @@ app.get('/username', (req, res) => {
 });
 
 
-  app.get('/register', (req, res)=>{
-    res.render('register.ejs');
-  });
-
-  app.get('/login', (req, res)=>{
-    res.render('login.ejs');
-  })
-
   app.get('/products', async (req, res)=>{
-    const products = await Products.findAll().then(products => products)
-    res.json({products: products});
+    try{
+      const products = await Products.findAll().then(products => products)
+      res.json({products: products});
+    }catch{
+      res.send('an error occured');
+    }
   })
 
     app.get('/categories', async (req, res)=>{
-    const products = await Categories.findAll();
-    res.json({products: products});
+    try{
+      const products = await Categories.findAll();
+      res.json({products: products});
+    }catch{
+      res.send('an error occured')
+    }
+   
   })
 
 
   app.get('/:category/getproducts', async (req, res)=>{
-    let {category} = req.params;
-    const products = await Products.findAll({where:{
-      category_id: category
-    }});
-    res.json({products: products});
+    try{
+      let {category} = req.params;
+      const products = await Products.findAll({where:{
+        category_id: category
+      }});
+      res.json({products: products});
+    }catch{
+      res.send('an error occured');
+    }
   })
 
 
   app.get('/products/getproduct/:id', async (req, res)=>{
-    let id = req.params.id;
-    Products.findByPk(id).then((product)=>{
-      res.json({product: product});
-    })
-    .catch((err)=>{
-      console.log(err);
-      res.json([{product: "item not found"}]);
-    })
+    try{
+      let id = req.params.id;
+      Products.findByPk(id).then((product)=>{
+        res.json({product: product});
+      })
+      .catch((err)=>{
+        console.log(err);
+        res.json([{product: "item not found"}]);
+      })
+      }catch{
+        res.send('an error occured');
+      }
   })
 
   app.get("/products/:name", async (req, res)=>{
-    const searchTerm = req.params.name;
     try {
-      
+      const searchTerm = req.params.name;
       const results = await Products.findAll({
         where: {
          name: {
@@ -391,30 +427,6 @@ app.get('/username', (req, res) => {
   }
   })
 
-  app.get('/categories', async (req, res)=>{
-    let categories = await Categories.findAll();
-    res.render('categories.ejs', {categories: categories});
-  })
-  app.get('/categories/:categorie', async (req, res)=>{
-    let categoryId = req.body.category_id;
-    // let category = await Categories.findByPk(categoryId);
-    res.json(categoryId);
-    // res.render('category.ejs', {category: category});
-  })
-  app.get('/cart', (req, res)=>{
-    res.render('cart.ejs', {cart: cart})
-  })
-
-  app.get('/myaccount', async (req, res)=>{
-    if(req.isAuthenticated()){
-      let userId = req.session.userId;
-      let user = await Customers.findByPk(userId);
-      res.render('my-account.ejs', {name: user.full_name});
-    }else{
-      res.redirect('/login');
-    }
-    
-  })
 
 app.listen(port, ()=>{
     console.log('Listening on port ' + port);
