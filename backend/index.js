@@ -159,7 +159,7 @@ app.use(express.json());
         where:{
           email: email.toString(),
         }
-      });
+      });  
       await EmailConfirm.create({
         email: email.toString(),
         code: confirmationCode,
